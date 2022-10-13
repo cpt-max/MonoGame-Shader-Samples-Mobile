@@ -25,6 +25,12 @@
       "commands": [
         "mgcb-editor-compute-windows"
       ]
+    },
+    "dotnet-mgcb-editor-compute-mac": {
+      "version": "3.8.2",
+      "commands": [
+        "mgcb-editor-compute-mac"
+      ]
     }
   }
 }

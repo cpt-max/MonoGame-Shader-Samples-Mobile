@@ -1,38 +1,26 @@
 ﻿using System;
-using Android.Widget;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace ShaderSample
 {
-    struct Particle
-    {
-        public Vector2 pos;
-        public Vector2 vel;
-    };
-
     public class ShaderGame : Game
     {
-        const int MaxParticleCount = 1000000;
-        const int ComputeGroupSize = 256; // has to be the same as the GroupSize define in the compute shader 
-
-        int particleCount = 100000;
-        float fps;
-        float dt;
-        float force;
-        Vector2 forceCenter;
-
-        GraphicsDeviceManager graphics;
-        Random rand = new Random();
         GUI gui;
-        Button forceButton;
-
+        GraphicsDeviceManager graphics;
         Effect effect;
+        Texture texture;
+        VertexBuffer triangle;
         SpriteBatch spriteBatch;
         SpriteFont textFont;
 
-        StructuredBuffer particleBuffer; // stores all the particle information, will be updated by the compute shader
-        VertexBuffer vertexBuffer; // used for drawing the particles  
+        int technique = 3;
+        float dt;
+
+        float textureDisplacement = 0.1f;
+        float tesselation = 8;
+        float geometryGeneration = 5;
+        float bend;
         
         public ShaderGame()
         {
@@ -45,12 +33,10 @@ namespace ShaderSample
         protected override void LoadContent()
         {
             effect = Content.Load<Effect>("Effect");
+            texture = Content.Load<Texture>("Texture");
             textFont = Content.Load<SpriteFont>("TextFont");
             spriteBatch = new SpriteBatch(GraphicsDevice);
-            particleBuffer = new StructuredBuffer(GraphicsDevice, typeof(Particle), MaxParticleCount, BufferUsage.None, ShaderAccess.ReadWrite);
-            vertexBuffer = new VertexBuffer(GraphicsDevice, typeof(VertexPositionTexture), MaxParticleCount, BufferUsage.WriteOnly); // no need to initialize, all the data for drawing the particles is coming from the structured buffer
-
-            FillParticlesBufferRandomly();
+            triangle = CreateTriangle();
         }
 
         public GUI CreateGUI(Android.Content.Context context)
@@ -58,14 +44,27 @@ namespace ShaderSample
             gui = new GUI(context);
 
             gui.BeginRow();
-            gui.AddButton("Less", Click.Continuous, b => { particleCount -= (int)Math.Ceiling(dt * particleCount); });
-            gui.AddButton("More", Click.Continuous, b => { particleCount += (int)Math.Ceiling(dt * particleCount); });
+            gui.AddButton("Bend-", Click.Continuous, b => { bend -= dt * 5; });
+            gui.AddButton("Bend+", Click.Continuous, b => { bend += dt * 5; });
             gui.EndRow();
 
             gui.BeginRow();
-            gui.AddButton("Reset", Click.Single, b => { FillParticlesBufferRandomly(); });
-            forceButton = gui.AddButton("Attract", Click.Single, b => { b.Text = b.Text == "Attract" ? "Repulse" : "Attract"; });
+            gui.AddButton("Tess-", Click.Continuous, b => { tesselation -= dt * 5; });
+            gui.AddButton("Tess+", Click.Continuous, b => { tesselation += dt * 5; });
             gui.EndRow();
+
+            gui.BeginRow();
+            gui.AddButton("Geom-", Click.Continuous, b => { geometryGeneration -= dt * 3; });
+            gui.AddButton("Geom+", Click.Continuous, b => { geometryGeneration += dt * 3; });
+            gui.EndRow();
+
+            gui.BeginRow();
+            gui.AddButton("Disp-", Click.Continuous, b => { textureDisplacement -= dt * 1; });
+            gui.AddButton("Disp+", Click.Continuous, b => { textureDisplacement += dt * 1; });
+            gui.EndRow();
+
+            gui.AddButton("Shader Stages", Click.Single, b => { technique = ++technique % 4; });
+
 
             return gui;
         }
@@ -73,22 +72,12 @@ namespace ShaderSample
         protected override void Update(GameTime gameTime)
         {
             dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            fps = 1 / dt;
-
             gui.Update();
 
-            particleCount = Math.Max(1, Math.Min(MaxParticleCount, particleCount));
-
-            var touch = Microsoft.Xna.Framework.Input.Touch.TouchPanel.GetState();
-            
-            force = touch.Count > 0f ? forceButton.Text == "Attract" ? 1f : -1f : 0f;
-            force *= 5;
-
-            if (touch.Count > 0)
-            {
-                forceCenter = touch[0].Position / new Vector2(GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height) * 2 - Vector2.One;
-                forceCenter.Y *= -1;
-            }
+            bend = Math.Max(-5, Math.Min(5, bend));
+            tesselation = Math.Max(1, Math.Min(20, tesselation));
+            geometryGeneration = Math.Max(1, Math.Min(10, geometryGeneration));
+            textureDisplacement = Math.Max(0, Math.Min(1, textureDisplacement));
 
             base.Update(gameTime);
         }
@@ -97,51 +86,51 @@ namespace ShaderSample
         {
             GraphicsDevice.Clear(Color.Black);
 
-            ComputeParticles(gameTime);
-            DrawParticles();
-            DrawText();
+            GraphicsDevice.RasterizerState = RasterizerState.CullNone;
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
 
-            base.Draw(gameTime);
-        }
+            Matrix world = Matrix.CreateScale(10);
+            Matrix view = Matrix.CreateLookAt(new Vector3(0, -10, 10), new Vector3(0, 0, 8), new Vector3(0, 1, 0));
+            Matrix projection = Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(90), (float)GraphicsDevice.Viewport.Width / (float)GraphicsDevice.Viewport.Height, 0.1f, 1000f);
 
-        private void ComputeParticles(GameTime gameTime)
-        {
-            effect.Parameters["Particles"].SetValue(particleBuffer);
-            effect.Parameters["DeltaTime"].SetValue((float)gameTime.ElapsedGameTime.TotalSeconds);
-            effect.Parameters["ForceCenter"].SetValue(forceCenter);
-            effect.Parameters["Force"].SetValue(force);
-
-            int groupCount = (int)Math.Ceiling((double)particleCount / ComputeGroupSize);
-
-            foreach (var pass in effect.CurrentTechnique.Passes)
-            {
-                pass.ApplyCompute();
-                GraphicsDevice.DispatchCompute(groupCount, 1, 1);
-            }
-        }
-
-        private void DrawParticles()
-        {
-            effect.Parameters["ParticlesReadOnly"].SetValue(particleBuffer);
+            effect.CurrentTechnique = effect.Techniques[technique];
+            effect.Parameters["WorldViewProjection"].SetValue(world * view * projection);
+            effect.Parameters["Texture"].SetValue(texture);
+            effect.Parameters["Bend"].SetValue(bend);
+            effect.Parameters["Tesselation"].SetValue(tesselation);
+            effect.Parameters["GeometryGeneration"].SetValue(geometryGeneration);
+            effect.Parameters["TextureDisplacement"].SetValue(textureDisplacement);
 
             foreach (var pass in effect.CurrentTechnique.Passes)
             {
                 pass.Apply();
 
-                GraphicsDevice.SetVertexBuffer(vertexBuffer);
-                GraphicsDevice.DrawPrimitives(PrimitiveType.PointList, 0, particleCount);
+                PrimitiveType primitiveType = hullShaderActive ?
+                    PrimitiveType.PatchListWith3ControlPoints :
+                    PrimitiveType.TriangleList;
+
+                GraphicsDevice.SetVertexBuffer(triangle);
+                GraphicsDevice.DrawPrimitives(primitiveType, 0, triangle.VertexCount / 3);
             }
+
+            DrawText();
+
+            base.Draw(gameTime);
         }
 
         private void DrawText()
         {
-            string text = "FPS\n";
-            text += "Particle Count\n";
-            text += "Touch for Force Fields\n";
+            string text = "Shader Stages: \n";
+            text += "Bend: \n";
+            text += "Tesselation: \n";
+            text += "Geometry Generation: \n";
+            text += "Texture Displacement: \n";
 
-            string values = fps.ToString("0") + "\n";
-            values += particleCount.ToString() + "\n";
-            values += forceButton.Text + "\n";
+            string values = effect.CurrentTechnique.Name + "\n";
+            values += (hullShaderActive ? bend.ToString() : "") + "\n";
+            values += (hullShaderActive ? tesselation.ToString() : "") + "\n";
+            values += (geometryShaderActive ? geometryGeneration.ToString() : "") + "\n";
+            values += (geometryShaderActive || hullShaderActive ? textureDisplacement.ToString() : "") + "\n";
 
             spriteBatch.Begin();
             spriteBatch.DrawString(textFont, text, new Vector2(30, 30), Color.White);
@@ -149,22 +138,20 @@ namespace ShaderSample
             spriteBatch.End();
         }
 
-        private void FillParticlesBufferRandomly()
+        private VertexBuffer CreateTriangle()
         {
-            Particle[] particles = new Particle[MaxParticleCount];
+            var vertices = new VertexPositionTexture[] {
+                new VertexPositionTexture(new Vector3( 0, 1, 0), new Vector2(0, 0)),
+                new VertexPositionTexture(new Vector3( 1, 0, 0), new Vector2(0, 1)),
+                new VertexPositionTexture(new Vector3(-1, 0, 0), new Vector2(1, 1)),
+            };
 
-            for (int i = 0; i < MaxParticleCount; i++)
-            {
-                particles[i].pos = new Vector2(
-                    (float)rand.NextDouble() * 2 - 1,
-                    (float)rand.NextDouble() * 2 - 1);
-
-                particles[i].vel = new Vector2(
-                    (float)(rand.NextDouble() * 2 - 1) * 0.1f,
-                    (float)(rand.NextDouble() * 2 - 1) * 0.1f);
-            }
-
-            particleBuffer.SetData(particles);
+            var vertexBuffer = new VertexBuffer(GraphicsDevice, typeof(VertexPositionTexture), vertices.Length, BufferUsage.WriteOnly);
+            vertexBuffer.SetData(vertices);
+            return vertexBuffer;
         }
+
+        private bool hullShaderActive => effect.CurrentTechnique.Name.Contains("Hull");
+        private bool geometryShaderActive => effect.CurrentTechnique.Name.Contains("Geometry");
     }
 }

@@ -33,10 +33,21 @@ namespace ShaderSample
             linearLayout = new LinearLayout(context);
             linearLayout.Orientation = Orientation.Vertical;
             linearLayout.SetGravity(GravityFlags.Bottom);
-            linearLayout.SetPadding(40, 0, 0, 20);
             linearLayout.LayoutParameters = new ViewGroup.LayoutParams(LayoutParams.WrapContent, LayoutParams.MatchParent);
 
             AddView(linearLayout);
+
+            // align to right side
+            ViewTreeObserver.GlobalLayout += (sender, args) =>
+            {
+                if (linearLayout.PaddingLeft == 0)
+                {
+#pragma warning disable CS0618 // Type or member is obsolete
+                    int screenWidth = ((Android.App.Activity)Context).WindowManager.DefaultDisplay.Width;
+#pragma warning restore CS0618 // Type or member is obsolete
+                    linearLayout.SetPadding(screenWidth - linearLayout.Width - 40, 0, 0, 20);
+                }
+            };
         }
 
         public Button AddButton(string name, Click press, Action<Button> onPress)
@@ -60,8 +71,10 @@ namespace ShaderSample
             var b = new Android.Widget.Button(Context);
             b.Text = name;
             b.SetTextColor(Color.White);
-            b.SetBackgroundDrawable(buttonBack);
             b.Tag = buttonStates.Count;
+#pragma warning disable CS0618 // Type or member is obsolete
+            b.SetBackgroundDrawable(buttonBack);
+#pragma warning restore CS0618 // Type or member is obsolete    
 
             if (press == ShaderSample.Click.Continuous)
                 b.Touch += OnTouchButton;
