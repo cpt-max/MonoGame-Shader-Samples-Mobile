@@ -27,10 +27,8 @@ namespace ShaderSample
 
             game = new ShaderGame();
 
-            var gui = game.CreateGUI(this);
             var gameView = game.Services.GetService(typeof(View)) as View;
-            gui.AddView(gameView, 0);
-            SetContentView(gui);
+            SetContentView(gameView);
 
             game.Run();
         }

@@ -1,9 +1,9 @@
 
 #----------------------------- Global Properties ----------------------------#
 
-/outputDir:../obj/$(Configuration)/net6.0-android/assets/Content
-/intermediateDir:../obj/$(Configuration)/net6.0-android/Content
-/platform:Android
+/outputDir:../bin/$(Configuration)/.net5.0/Content
+/intermediateDir:../obj/$(Configuration)/.net5.0/Content
+/platform:DesktopGL
 /config:Debug
 /profile:HiDef
 /compress:False
@@ -18,11 +18,3 @@
 /processor:EffectProcessor
 /processorParam:DebugMode=Auto
 /build:Effect.fx
-
-#begin TextFont.spritefont
-/importer:FontDescriptionImporter
-/processor:FontDescriptionProcessor
-/processorParam:PremultiplyAlpha=True
-/processorParam:TextureFormat=Compressed
-/build:TextFont.spritefont
-
