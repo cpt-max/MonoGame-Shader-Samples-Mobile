@@ -1,0 +1,28 @@
+
+#----------------------------- Global Properties ----------------------------#
+
+/outputDir:../obj/$(Configuration)/net6.0-android/assets/Content
+/intermediateDir:../obj/$(Configuration)/net6.0-android/Content
+/platform:Android
+/config:Debug
+/profile:HiDef
+/compress:False
+
+#-------------------------------- References --------------------------------#
+
+
+#---------------------------------- Content ---------------------------------#
+
+#begin Effect.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effect.fx
+
+#begin TextFont.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:TextFont.spritefont
+
