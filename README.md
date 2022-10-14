@@ -1,11 +1,12 @@
 [< Back to overview](https://github.com/cpt-max/MonoGame-Shader-Samples-Mobile/tree/overview)
+# Tessellation and Geometry Shader for MonoGame
 
-# Particle Compute Shader for MonoGame
+![Screenshot](https://github.com/cpt-max/MonoGame-Shader-Samples/blob/overview/Screenshots/TesselationGeometry.jpg?raw=true)
 
-![Screenshots](https://github.com/cpt-max/MonoGame-Shader-Samples/blob/overview/Screenshots/ComputeParticles.jpg?raw=true)
+This sample uses a very simple hull and domain shader to tessellate a single input triangle into many sub triangles. Each sub triangle is then passed into a geometry shader to generate even more triangles along it's edges, which creates a wireframe-like effect.
 
-This sample uses a compute shader to update particles on the GPU. 
-The particle buffer is used directly by the vertex shader that draws the particles. Since no data needs to be downloaded to the CPU, this method is very fast.
+You can switch between different techniques, which effectively lets you disable tessellation and/or the geometry shader.
+
 
 ## Build Instructions
 The custom MonoGame fork used in this sample is available as a NuGet package, no need to build it yourself.<br>
@@ -18,7 +19,4 @@ Here are more details about [NuGet packages, platform support and build requirem
 <br><br>
 
 [< Back to overview](https://github.com/cpt-max/MonoGame-Shader-Samples-Mobile/tree/overview)
-
-
-
 
