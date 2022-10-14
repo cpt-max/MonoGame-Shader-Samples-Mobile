@@ -2,7 +2,10 @@
 
 Each sample is in a separate branch of this repository, so don't use this branch, pick a sample from below first.<br>
 The samples are based on a [custom MonoGame fork](https://github.com/cpt-max/MonoGame), that adds tesselation, geometry and compute shaders.<br>
-You don't need to build the fork in order to run the samples, as they use prebuilt NuGet packages. As long as .Net 6 is installed, they should just launch.<br>
+You don't need to build the fork in order to run the samples, as they use prebuilt NuGet packages. 
+<br>
+
+.NET 6 and the Android SDK needs to be installed. Either use Visual Studio 2022 or install them manually. On Linux you may also need to install the Java SDK.  
 
 [Equivalent DirectX and OpenGL Desktop Samples](https://github.com/cpt-max/MonoGame-Shader-Samples)<br>
 [Compute Shader Guide for MonoGame](https://github.com/cpt-max/Docs/blob/master/MonoGame%20Compute%20Shader%20Guide.md)<br>
